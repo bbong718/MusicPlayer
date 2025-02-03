@@ -9,6 +9,8 @@ from timeit import default_timer as timer
 import threading
 import argparse
 from signal import signal, SIGINT, SIGTERM, default_int_handler
+import time
+import math
 
 # For handling warning messages
 import logging
@@ -19,6 +21,7 @@ class AudioPlayer:
         self.metadata = {}
         self.progress_bar = None
         self.audio_files = []
+        self.timeout = 5  # Default timeout in seconds
 
     def get_audio_metadata(self, file_path):
         """Extract metadata from Audio file."""
@@ -94,7 +97,7 @@ class AudioPlayer:
             return
         
         # Print metadata
-        self.display_metadata()
+        self.display_metadata(file_path)
         
         # Start progress bar thread
         total_length = self.metadata.get('length', 0)
@@ -112,31 +115,35 @@ class AudioPlayer:
 
         # Clean up
         pygame.mixer.music.unload()
-    
+
     def update_progress_bar(self, total_length=0.0):
         """Update tqdm progress bar during playback."""
-        start_time = timer()
         if total_length == 0:
             print("Unable to show progress bar (unknown length)")
             return
         
-        with tqdm(total=total_length,
-                  unit='s',
-                  desc="Playing",
-                  dynamic_ncols=True) as pb:
+        with tqdm(total=total_length, unit='s', desc="Playing", dynamic_ncols=True) as pb:
             self.progress_bar = pb
-            while True:
-                elapsed_time = timer() - start_time
-                
-                if pygame.mixer.music.get_busy():
-                    # Update progress bar position
-                    pb.n = min(elapsed_time, total_length)
-                    pb.update(0.01)  # trigger refresh
+            start_time = pygame.time.get_ticks() / 1000.0
             
-                else:
+            while True:
+                current_time = pygame.time.get_ticks() / 1000.0
+                elapsed_time = current_time - start_time
+
+                # Limiting to 3 decimal places to prevent excessive precision
+                rounded_elapsed = round(elapsed_time, 3)
+                
+                # Prevent very small overflows due to timing inaccuracies
+                if elapsed_time >= total_length * (1 + 1E-6):
                     break
-        
-        self.progress_bar = None
+                    
+                if pygame.mixer.music.get_busy():
+                    # Ensure the progress doesn't exceed total length
+                    pb_pos = min(rounded_elapsed, total_length )
+                    pb.update(pb_pos - pb.n)   # Update only the difference
+                
+            # After loop, properly close the progress bar to prevent any lingering state
+            pb.close()
 
     def get_audio_files(self, directory):
         """
@@ -178,7 +185,48 @@ class AudioPlayer:
             self.play_audio(track['path'])
             
             if i < total_tracks:
-                input("\nPress Enter to continue to next track... (or add automatic progression)")
+                self.display_next_track_and_wait(audio_list, i + 1)
+
+    def display_next_track_and_wait(self, audio_list, next_index):
+        """
+        Show next track info and wait for user input or timeout.
+        Automatically proceeds to play the next track after the specified timeout.
+        """
+        next_track = audio_list[next_index - 1]
+        print(f"\nNext up: {next_index}/{len(audio_list)}: [{next_track['artist']} - {next_track['title']}]")
+
+        start_time = time.time()
+        timeout_seconds = self.timeout
+
+        # Use a thread to check for user input without blocking
+        user_input_received = False
+
+        def handle_keypress():
+            try:
+                if sys.stdin.readline().strip() != '':
+                    nonlocal user_input_received
+                    user_input_received = True
+                    print("\nAdvancing immediately as Enter was pressed.")
+            except Exception as e:
+                pass
+
+        key_thread = threading.Thread(target=handle_keypress)
+        key_thread.start()
+
+        while not user_input_received and (time.time() - start_time) < timeout_seconds:
+            remaining = int(timeout_seconds - (time.time() - start_time))
+            if remaining > 0:
+                print(f"Starting next track in {remaining} seconds...", end='\r')
+                time.sleep(1)
+            else:
+                break
+
+        key_thread.join()
+        if user_input_received or (time.time() - start_time) >= timeout_seconds:
+            print("\nProceeding to the next track.")
+
+        # Automatically play the next track
+        self.play_sequence([audio_list[next_index - 1]])
                 
     def signal_handler(self, sig, frame):
         print("\nExiting gracefully...")
@@ -228,7 +276,7 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--file', '-f', required=False, type=str, help='Single audio file.')
     group.add_argument('--dir', '-d', required=False, type=str, help='Directory of audio files.')
-    args = group.parse_args()
+    args = parser.parse_args()
 
     # Validate args
     if not (args.file or args.dir):
