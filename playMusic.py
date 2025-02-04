@@ -10,7 +10,6 @@ import threading
 import argparse
 from signal import signal, SIGINT, SIGTERM, default_int_handler
 import time
-import math
 
 # For handling warning messages
 import logging
@@ -49,7 +48,7 @@ class AudioPlayer:
                     self.metadata['genre'] = str(id3_tags.get("TCON", [""])[0])   # Genre
                     
                 else:
-                    print("No ID3 tags found.")
+                    print(f"[{len(self.audio_files)}] No ID3 tags found. Path: {file_path}, length: {self.metadata['length']}/s")
                     for key in ['title', 'artist', 'album', 'genre']:
                         self.metadata[key] = "Unknown"
             
