@@ -243,7 +243,7 @@ class AudioPlayer():
         sys.exit(0)
             
 def main(args):
-    player = AudioPlayer(args.wait_timeout)
+    player = AudioPlayer(timeout=args.wait_timeout)
 
     signal(SIGINT, player.signal_handler)
     signal(SIGTERM, player.signal_handler)

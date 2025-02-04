@@ -22,7 +22,7 @@ pip install pygame
 The script can be executed from the command line with the following syntax:
 
 ```
-python3 audio_player.py [--dir|-d, --file|-d, --wait-timeout|-wt] <path_to_audio_file_or_directory>
+pytohn3 playMusic.py [-h] [--wait-timeout WAIT_TIMEOUT] [--file FILE | --dir DIR]
 ```
 
 ### Examples
