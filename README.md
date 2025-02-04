@@ -4,7 +4,7 @@ A simple Python-based command-line audio player that supports various audio form
 ## Features
 Play individual audio files  
 Play all audio files in a specified directory  
-Supports multiple audio formats (MP3, WAV, etc.)  
+Supports multiple audio formats (MP3, WAV, OOG, etc...)  
 
 ## Prerequisites
 Before running the script, ensure you have the following installed:
@@ -22,7 +22,7 @@ pip install pygame
 The script can be executed from the command line with the following syntax:
 
 ```
-python3 audio_player.py --dir|-d <path_to_audio_file_or_directory>
+python3 audio_player.py [--dir|-d, --file|-d, --wait-timeout|-wt] <path_to_audio_file_or_directory>
 ```
 
 ### Examples
@@ -35,7 +35,7 @@ python audio_player.py --file|-f /path/to/song.mp3
 **Play all audio files in a directory:**
 
 ```
-python audio_player.py /path/to/audio/directory/
+python audio_player.py --dir|-d /path/to/audio/directory/
 ```
 
 ## Limitations and Suggestions

@@ -15,12 +15,12 @@ import time
 import logging
 logger = logging.getLogger(__name__)
 
-class AudioPlayer:
-    def __init__(self):
+class AudioPlayer():
+    def __init__(self, timeout=10):
         self.metadata = {}
         self.progress_bar = None
         self.audio_files = []
-        self.timeout = 5  # Default timeout in seconds
+        self.timeout = timeout # Default timeout in seconds
 
     def get_audio_metadata(self, file_path):
         """Extract metadata from Audio file."""
@@ -243,7 +243,7 @@ class AudioPlayer:
         sys.exit(0)
             
 def main(args):
-    player = AudioPlayer()
+    player = AudioPlayer(args.wait_timeout)
 
     signal(SIGINT, player.signal_handler)
     signal(SIGTERM, player.signal_handler)
@@ -280,6 +280,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command-line media/audio player')
+    parser.add_argument('--wait-timeout', '-wt', required=False, type=int, default=10, help='Wait time before playing next audio file.')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--file', '-f', required=False, type=str, help='Single audio file.')
     group.add_argument('--dir', '-d', required=False, type=str, help='Directory of audio files.')
