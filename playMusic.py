@@ -82,7 +82,7 @@ class AudioPlayer:
         print(f"Sample Rate:  {self.metadata['sample_rate']} Hz")
         print(f"Channels:     {self.metadata['channels']}\n")
     
-    def play_audio(self, file_path):
+    def play_audio(self, file_path, metadata=None):
         """Play audio file with progress bar."""
         # Initialize pygame
         pygame.init()
@@ -95,12 +95,16 @@ class AudioPlayer:
         except Exception as e:
             print(f"Error loading file: {e}")
             return
+
+        if metadata is not None:
+            self.metadata = metadata
         
         # Print metadata
         self.display_metadata(file_path)
         
         # Start progress bar thread
         total_length = self.metadata.get('length', 0)
+
         pb_thread = threading.Thread(target=self.update_progress_bar, args=(total_length,))
         pb_thread.start()
         
@@ -163,10 +167,16 @@ class AudioPlayer:
                         self.get_audio_metadata(file_path)
                         self.audio_files.append({
                             'path': file_path,
+                            'album': self.metadata.get('album', ''),
+                            'genre': self.metadata.get('genre', ''),
                             'artist': self.metadata.get('artist', ''),
                             'title': self.metadata.get('title', ''),
                             'bitrate': self.metadata.get('bitrate', 0),  # in kbps
+                            'length': self.metadata.get('length', 0.0),
+                            'sample_rate': self.metadata.get('sample_rate', 0),
+                            'channels': self.metadata.get('channels', 0)
                         })
+
                     except Exception as e:
                         print(f"Error processing {file_name}: {e}")
                     
@@ -182,52 +192,51 @@ class AudioPlayer:
             print(f"Bitrate: {track['bitrate']} kbps, Path: {track['path']}")
             
             # Play the file
-            self.play_audio(track['path'])
+            self.play_audio(track['path'], track)
             
             if i < total_tracks:
                 self.display_next_track_and_wait(audio_list, i + 1)
 
     def display_next_track_and_wait(self, audio_list, next_index):
-        """
-        Show next track info and wait for user input or timeout.
-        Automatically proceeds to play the next track after the specified timeout.
-        """
-        next_track = audio_list[next_index - 1]
-        print(f"\nNext up: {next_index}/{len(audio_list)}: [{next_track['artist']} - {next_track['title']}]")
+        """"Show next track info and wait for user input or timeout.
+            Automatically proceeds to play the next track after the specified timeout."""
+        if not audio_list:
+            print("No more tracks in this sequence.")
+            return
+
+        current_index   = next_index - 1
+        current_track  = audio_list[current_index]
+        print(f"\nNext up: {current_index + 1}/{len(audio_list)}: {current_track['artist']} - {current_track['title']}, Path: {current_track['path']}")
 
         start_time = time.time()
         timeout_seconds = self.timeout
-
-        # Use a thread to check for user input without blocking
         user_input_received = False
 
-        def handle_keypress():
-            try:
-                if sys.stdin.readline().strip() != '':
-                    nonlocal user_input_received
-                    user_input_received = True
-                    print("\nAdvancing immediately as Enter was pressed.")
-            except Exception as e:
-                pass
+        if not sys.stdin.isatty():
+            print("Cannot run with pipe inpu ; starting playback d irec tl y.", file=sys.stderr)
+            self.play_sequence([ audio_list[current_index] ])
+            return
 
-        key_thread = threading.Thread(target=handle_keypress)
-        key_thread.start()
-
-        while not user_input_received and (time.time() - start_time) < timeout_seconds:
-            remaining = int(timeout_seconds - (time.time() - start_time))
+        # Read input non-blocking each second without threads
+        while (time.time() - start_time) < timeout_seconds and not user_input_received:
+            elapsed_time = time.time()-start_time
+            remaining = int(timeout_seconds - elapsed_time)
             if remaining > 0:
                 print(f"Starting next track in {remaining} seconds...", end='\r')
-                time.sleep(1)
             else:
                 break
 
-        key_thread.join()
-        if user_input_received or (time.time() - start_time) >= timeout_seconds:
-            print("\nProceeding to the next track.")
+            # Non-blocking read for input
+            import select
+            if select.select([ sys.stdin ], [], [], 1)[0]:
+                line = sys.stdin.readline()
+                if line.strip() == '' and len(line) > 0:
+                    user_input_received = True
+            time.sleep(1)
 
-        # Automatically play the next track
-        self.play_sequence([audio_list[next_index - 1]])
-                
+        print("\nProceeding to the next track.", flush=True)
+        return
+
     def signal_handler(self, sig, frame):
         print("\nExiting gracefully...")
         if self.progress_bar:
