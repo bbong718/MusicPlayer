@@ -212,8 +212,7 @@ class AudioPlayer:
         user_input_received = False
 
         if not sys.stdin.isatty():
-            print("Cannot run with pipe inpu ; starting playback d irec tl y.", file=sys.stderr)
-            self.play_sequence([ audio_list[current_index] ])
+            print("Cannot run with pipe input; starting playback directly.", file=sys.stderr)
             return
 
         # Read input non-blocking each second without threads

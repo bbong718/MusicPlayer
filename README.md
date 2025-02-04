@@ -39,14 +39,7 @@ python audio_player.py /path/to/audio/directory/
 ```
 
 ## Limitations and Suggestions
-**Metadata Extraction**  
-Currently, the script uses Pygame for audio playback, which does not support metadata extraction (e.g., artist, title) from MP3 files. If you require this functionality, consider using alternative libraries like mutagen or ** eyed3**, which provide robust metadata handling.
-
-To install mutagen:
-
-```
-pip3 install mutagen
-```
+Currently for the `--dir|-d` options it plays all files one by one. There is no screen refresh, it just continues with the next file. It does await users input to continue, or uses a timeout to go to the next track.
 
 ## Contributing
 Contributions are welcome! If you have suggestions for improving this tool or encounter any issues, please open an issue or submit a pull request on the GitHub repository
